@@ -18,10 +18,10 @@ gateway no tiene permisos propios ni ve el TLS del export.
   # estricto (1) los descarta. 2 (flexible, el valor por defecto en Fedora, entre otras) o 0.
   net.ipv4.conf.all.rp_filter = 0
   net.ipv4.conf.lo.rp_filter = 0
-  # Buffers UDP grandes para QUIC.
-  net.core.rmem_max = 16777216
-  net.core.wmem_max = 16777216
   ```
+
+  Los buffers UDP grandes para QUIC los pide el gateway con su `CAP_NET_ADMIN`, por encima de
+  `net.core.rmem_max`: el host no necesita nada para eso.
 
 - Un puerto UDP para el gateway (en el ejemplo, 443/udp) abierto en el firewall, en la VPN o hacia
   Internet, según por dónde lleguen los clientes.

@@ -223,7 +223,7 @@ jobs:
   publish:
     name: Publish the image
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: [image, image-checks]
+    needs: [privacy, rust, link, stage1, stage2, stage3, image, image-checks]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

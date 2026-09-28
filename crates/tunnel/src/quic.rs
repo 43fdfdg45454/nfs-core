@@ -13,7 +13,8 @@ use std::time::Duration;
 /// held by a loss (it delivers in order) must never stop the sender.
 const STREAM_WINDOW: u32 = 16 << 20;
 const CONNECTION_WINDOW: u32 = 64 << 20;
-/// Socket buffers asked for; the kernel caps them at net.core.{r,w}mem_max.
+/// Socket buffers: with CAP_NET_ADMIN (the gateway's) past net.core.{r,w}mem_max, so the host
+/// needs no setting; without it (a phone), up to them.
 const SOCKET_BUFFER: usize = 8 << 20;
 
 fn transport(congestion: Congestion) -> TransportConfig {
@@ -33,10 +34,17 @@ fn transport(congestion: Congestion) -> TransportConfig {
 }
 
 fn socket(addr: SocketAddr) -> Result<UdpSocket, Error> {
+    use rustix::net::sockopt::{
+        set_socket_recv_buffer_size_force, set_socket_send_buffer_size_force,
+    };
     let socket = UdpSocket::bind(addr)?;
     let raw = socket2::SockRef::from(&socket);
-    raw.set_recv_buffer_size(SOCKET_BUFFER)?;
-    raw.set_send_buffer_size(SOCKET_BUFFER)?;
+    if set_socket_recv_buffer_size_force(&socket, SOCKET_BUFFER).is_err() {
+        raw.set_recv_buffer_size(SOCKET_BUFFER)?;
+    }
+    if set_socket_send_buffer_size_force(&socket, SOCKET_BUFFER).is_err() {
+        raw.set_send_buffer_size(SOCKET_BUFFER)?;
+    }
     Ok(socket)
 }
 
