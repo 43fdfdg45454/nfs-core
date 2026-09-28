@@ -19,6 +19,11 @@ pub struct SetAttrs {
 }
 
 impl SetAttrs {
+    /// These attributes with `mode` if they set none (a new file's or directory's).
+    pub fn or_mode(&self, mode: u32) -> Self {
+        Self { mode: self.mode.or(Some(mode)), ..self.clone() }
+    }
+
     pub fn encode(&self, e: &mut Encoder) {
         let mut set = Vec::new();
         let mut v = Encoder::new();

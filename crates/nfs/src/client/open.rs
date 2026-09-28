@@ -18,6 +18,12 @@ impl Client {
         create: Create,
         access: u32,
     ) -> Result<(File, Attrs)> {
+        let mode = self.session.mode(0o666);
+        let create = match create {
+            Create::Unchecked(attrs) => Create::Unchecked(attrs.or_mode(mode)),
+            Create::Guarded(attrs) => Create::Guarded(attrs.or_mode(mode)),
+            Create::No => Create::No,
+        };
         let owner = self.open_owner();
         let clientid = self.session.clientid().await;
         let mut ops = Ops::default();

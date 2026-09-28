@@ -22,6 +22,11 @@ impl Session {
         &self.config.owner
     }
 
+    /// A new file's (`0o666`) or directory's (`0o777`) mode under the configured umask.
+    pub fn mode(&self, full: u32) -> u32 {
+        full & !self.config.umask
+    }
+
     /// How many times the server said it could not call the client back (a diagnostic).
     pub fn callbacks_down(&self) -> u32 {
         self.channels.rebinds.load(Ordering::Relaxed)

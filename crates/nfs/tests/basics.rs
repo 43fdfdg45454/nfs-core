@@ -38,6 +38,22 @@ async fn names_and_directories() {
 }
 
 #[tokio::test]
+async fn without_a_mode_new_files_and_directories_get_the_usual_ones() {
+    // nfsd would leave them 0000: created, but not writable again except by root.
+    let Some((client, dir)) = common::setup("default-mode").await else {
+        return;
+    };
+    let (_, attrs) = client.mkdir(&dir, "d", &SetAttrs::default()).await.unwrap();
+    assert_eq!(attrs.mode & 0o777, 0o755);
+    for create in [Create::Guarded(Default::default()), Create::Unchecked(Default::default())] {
+        let (file, attrs) = client.create(&dir, "f", create, WRITE_ACCESS).await.unwrap();
+        file.close().await.unwrap();
+        assert_eq!(attrs.mode & 0o777, 0o644);
+        client.remove(&dir, "f").await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn a_new_file_has_its_mode_and_the_current_time() {
     let Some((client, dir)) = common::setup("new-file").await else {
         return;

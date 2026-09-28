@@ -44,7 +44,8 @@ impl Client {
     }
 
     pub async fn mkdir(&self, dir: &Fh, name: &str, attrs: &SetAttrs) -> Result<(Fh, Attrs)> {
-        self.create_in(dir, |ops| ops.mkdir(name, attrs)).await
+        let attrs = attrs.or_mode(self.session.mode(0o777));
+        self.create_in(dir, |ops| ops.mkdir(name, &attrs)).await
     }
 
     pub async fn symlink(&self, dir: &Fh, name: &str, target: &str) -> Result<(Fh, Attrs)> {

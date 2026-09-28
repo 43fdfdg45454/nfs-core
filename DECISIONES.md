@@ -56,54 +56,57 @@ Decisiones vigentes tomadas sin consulta. Cada una dice qué se decidió y por q
     más).
 16. **Listados con `rdattr_error`:** una entrada cuyos atributos no se pueden leer (un export que
     pide otra seguridad) viene con el motivo en vez de hacer fallar todo el listado.
+17. **Permisos de lo nuevo con umask:** un archivo o una carpeta nuevos sin modo pedido se crean
+    con `0666` o `0777` menos `Config::umask` (`022` por defecto, como el cliente del kernel). Sin
+    modo, nfsd los crea `0000` y después solo root puede volver a abrirlos para escribir.
 
 ## Motor de archivos
 
-17. **Conexiones reservadas para lo urgente:** metadatos y lecturas que alguien espera van por
+18. **Conexiones reservadas para lo urgente:** metadatos y lecturas que alguien espera van por
     conexiones que la lectura adelantada y las escrituras no usan, para que su respuesta no quede
     detrás de 1 MiB. Con QUIC basta un stream (todos comparten el control de congestión); con TCP,
     una cuarta parte (mínimo 2).
-18. **Lo urgente no pasa por la cola:** una parte que un lector espera se pide directo. La cola
+19. **Lo urgente no pasa por la cola:** una parte que un lector espera se pide directo. La cola
     (READ de 1 MiB en vuelo para todos los archivos, lo más cercano primero; en vuelo, el máximo
     entre 8 y las conexiones de la sesión) es solo para la lectura adelantada; al sacar un bloque
     que ya nadie quiere (hubo un salto), se descarta.
-19. **Unidad de caché: partes de 128 KiB.** Un bloque adelantado se pide en un READ de 1 MiB y se
+20. **Unidad de caché: partes de 128 KiB.** Un bloque adelantado se pide en un READ de 1 MiB y se
     guarda como 8 partes. En disco, un archivo disperso por versión y un índice de partes: sin
     huecos ni miles de archivos chicos. Una versión nueva borra las viejas.
-20. **Ventana de lectura adelantada:** nada tras una sola lectura después de un salto (un cuadro
+21. **Ventana de lectura adelantada:** nada tras una sola lectura después de un salto (un cuadro
     al buscar una escena), 4 MiB cuando sigue leyendo, 16 MiB desde 1 MiB leído, y "Leer por
     adelantado" completo (256 MiB; 48 en memoria) desde 8 MiB. Con la ventana completa se rellena
     en tandas: recién cuando lo que hay por delante baja a tres cuartos, para que la radio de un
     teléfono descanse entre tandas (a 1 MB/s, un minuto) sin que el colchón baje de 192 MiB.
-21. **Escritura:** WRITE del tamaño de la sesión, en vuelo como la lectura adelantada, COMMIT cada
+22. **Escritura:** WRITE del tamaño de la sesión, en vuelo como la lectura adelantada, COMMIT cada
     64 MiB sin confirmar y al cerrar.
-22. **Prioridad de los lectores sobre las subidas:** mientras un lector espera la red, las
+23. **Prioridad de los lectores sobre las subidas:** mientras un lector espera la red, las
     escrituras bajan a 2 en vuelo.
-23. **Archivos cambiados por otro cliente, como el cliente NFS del kernel** (consistencia al
+24. **Archivos cambiados por otro cliente, como el cliente NFS del kernel** (consistencia al
     abrir): mientras está abierto, lo ya leído puede quedar viejo; al reabrir, todo es la versión
     nueva. Un archivo que crece se lee más allá del fin viejo por el mismo lector (lo que pasa del
     tamaño conocido se pide directo, sin caché); uno truncado termina en su nuevo fin al instante.
-24. **Borrado por otro cliente: la caché del archivo viejo queda** hasta que la desaloje el límite.
+25. **Borrado por otro cliente: la caché del archivo viejo queda** hasta que la desaloje el límite.
     El motor no puede saberlo, y nunca se sirve para un archivo nuevo con el mismo nombre (la
     caché va por handle y versión). Borrado desde la app: se descarta en el momento.
 
-25. **Memoria total del motor: 96 MiB** para todos los archivos abiertos, repartida
+26. **Memoria total del motor: 96 MiB** para todos los archivos abiertos, repartida
     entre ellos (dos tercios adelante, uno atrás; nunca más que los 48 / 24 MiB por archivo). Lo que
     no entra en memoria queda en la caché de disco. `Engine::memory()` informa uso y pico.
 
 ## Herramientas y proceso
 
-26. **h3 desde git**, fijado a un commit: la versión publicada (0.0.8) manda `:scheme` y `:path`
+27. **h3 desde git**, fijado a un commit: la versión publicada (0.0.8) manda `:scheme` y `:path`
     en un CONNECT común, cosa que RFC 9114 prohíbe. Volver a crates.io cuando salga la versión.
-27. **rustfmt con `use_small_heuristics = "Max"`**: el mismo código en menos líneas, para el
+28. **rustfmt con `use_small_heuristics = "Max"`**: el mismo código en menos líneas, para el
     límite de 100 por archivo.
-28. **Servidor local para desarrollar: nfs-ganesha** en el contenedor (su kernel no tiene nfsd).
+29. **Servidor local para desarrollar: nfs-ganesha** en el contenedor (su kernel no tiene nfsd).
     La referencia sigue siendo nfsd en la CI.
-29. **Red simulada en `198.51.100.0/24`**: el contenedor de la nube usa `192.0.2.0/24`.
-30. **Fixtures que las pruebas alteran** (`gone-*`, `edited-*`, `grown-*`, `shrunk-*`): se
+30. **Red simulada en `198.51.100.0/24`**: el contenedor de la nube usa `192.0.2.0/24`.
+31. **Fixtures que las pruebas alteran** (`gone-*`, `edited-*`, `grown-*`, `shrunk-*`): se
     escriben en el servidor en cada job de la CI; localmente hay que volver a generarlas
     (`ci/fixtures.sh`) antes de cada corrida.
-31. **QUIC: un ping cada 25 s y 60 s de inactividad** (antes 2 s y 10 s): con pings cada 2 s la
+32. **QUIC: un ping cada 25 s y 60 s de inactividad** (antes 2 s y 10 s): con pings cada 2 s la
     radio de un teléfono nunca vuelve a reposo (tarda unos 10 s); 25 s conserva los NAT (30 s como
     mínimo). Un camino muerto con llamadas esperando lo detectan el tiempo de inactividad del RPC
     (30 s); al reconectar, un CONNECT sin respuesta del gateway en 4 s hace que el túnel descarte la

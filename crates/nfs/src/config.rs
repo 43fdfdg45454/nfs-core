@@ -25,6 +25,10 @@ pub struct Config {
     pub reach_timeout: Duration,
     /// How long a call keeps being retried, across reconnections, before it fails.
     pub call_timeout: Duration,
+    /// Permissions a new file (0o666) or directory (0o777) does not get when none are asked for,
+    /// as a kernel client's umask: 0o022 by default. Without a mode Linux nfsd would create them
+    /// 0000, writable again only by root.
+    pub umask: u32,
 }
 
 impl Config {
@@ -48,6 +52,7 @@ impl Config {
             idle_timeout: Duration::from_secs(30),
             reach_timeout: Duration::from_secs(4),
             call_timeout: Duration::from_secs(75),
+            umask: 0o022,
         }
     }
 }
