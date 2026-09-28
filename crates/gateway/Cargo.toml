@@ -1,0 +1,21 @@
+[package]
+name = "nfs-gateway"
+version.workspace = true
+publish = false
+description = "Carries HTTP/3 CONNECT streams to nfsd as TCP connections from the client's own address"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytes.workspace = true
+h3.workspace = true
+h3-quinn.workspace = true
+http.workspace = true
+nfs-tunnel.workspace = true
+quinn.workspace = true
+socket2.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,21 @@
+[package]
+name = "nfs-engine"
+version.workspace = true
+publish = false
+description = "File engine over nfs-client: reads as a pipeline of pieces with priorities, read-ahead and a disk cache; parallel writes"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytes.workspace = true
+nfs-client.workspace = true
+rustix = { version = "1", features = ["fs"] }
+tokio.workspace = true
+
+[dev-dependencies]
+nfs-limits = { path = "../limits" }
+nfs-testkit = { path = "../testkit" }
+
+[lints]
+workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "nfs-xdr"
+version.workspace = true
+publish = false
+description = "XDR (RFC 4506) encoding and decoding, as much as NFSv4 needs"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytes.workspace = true
+
+[lints]
+workspace = true

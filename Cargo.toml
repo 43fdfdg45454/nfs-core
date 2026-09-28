@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["fuzz"]
+
+[workspace.package]
+# The release: the gateway image is tagged with it and a push that changes it publishes v<version>.
+version = "1.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/43fdfdg45454/nfs-core"
+
+[workspace.dependencies]
+bytes = "1"
+http = "1"
+quinn = "0.11"
+# TLS 1.3 only (RFC 9289 asks it of RPC-with-TLS; QUIC needs it): no TLS 1.2 code in the build.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging"] }
+socket2 = { version = "0.6", features = ["all"] }
+tokio = { version = "1", features = ["full"] }
+# h3 0.0.8 sends :scheme and :path on a plain CONNECT, which RFC 9114 section 4.4 forbids; the
+# fix is upstream but unreleased. Move to crates.io once a release carries it.
+h3 = { git = "https://github.com/hyperium/h3", rev = "43745ad87e95b0c035ac9c547aad467303213425" }
+h3-quinn = { git = "https://github.com/hyperium/h3", rev = "43745ad87e95b0c035ac9c547aad467303213425" }
+nfs-tunnel = { path = "crates/tunnel" }
+nfs-xdr = { path = "crates/xdr" }
+nfs-rpc = { path = "crates/rpc" }
+nfs-client = { path = "crates/nfs" }
+nfs-engine = { path = "crates/engine" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }

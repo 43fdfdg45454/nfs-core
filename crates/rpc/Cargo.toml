@@ -1,0 +1,27 @@
+[package]
+name = "nfs-rpc"
+version.workspace = true
+publish = false
+description = "ONC RPC (RFC 5531) over a byte stream: calls multiplexed by xid, AUTH_SYS, RPC-with-TLS"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bytes.workspace = true
+nfs-xdr.workspace = true
+rustls.workspace = true
+tokio.workspace = true
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+
+[dev-dependencies]
+# A TLS 1.2 server for the test that the client refuses it.
+rustls = { workspace = true, features = ["tls12"] }
+rcgen = "0.13"
+
+[features]
+# Entry points for the fuzz targets (fuzz/).
+fuzzing = []
+
+[lints]
+workspace = true

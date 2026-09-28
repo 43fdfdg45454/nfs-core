@@ -1,0 +1,16 @@
+[package]
+name = "nfs-testkit"
+version.workspace = true
+description = "What the tests against a real server share: configuration from the environment, and breaking the network on purpose"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+nfs-client.workspace = true
+nfs-rpc.workspace = true
+nfs-tunnel.workspace = true
+
+[lints]
+workspace = true

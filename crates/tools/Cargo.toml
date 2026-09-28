@@ -1,0 +1,22 @@
+[package]
+name = "nfs-tools"
+version.workspace = true
+description = "Test tools: a local TCP to HTTP/3 CONNECT tunnel client, an RPC latency probe and a throughput bench"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+bytes.workspace = true
+h3.workspace = true
+h3-quinn.workspace = true
+http.workspace = true
+nfs-client.workspace = true
+nfs-testkit = { path = "../testkit" }
+nfs-tunnel.workspace = true
+quinn.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

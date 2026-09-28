@@ -1,0 +1,261 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Every job runs in parallel: the total time is what counts, not the minutes used.
+# Only reading, unless a job asks for more.
+permissions:
+  contents: read
+
+jobs:
+  privacy:
+    name: Privacy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: No addresses or host names of a real network
+        run: |
+          range="${{ github.event.before }}..${{ github.sha }}"
+          git cat-file -e "${{ github.event.before }}" 2>/dev/null || range="${{ github.sha }}"
+          ci/run.sh Privacy ci/privacy.sh "$range"
+
+  rust:
+    name: Rust ${{ matrix.check }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [fmt, clippy, test]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: matrix.check != 'fmt'
+      - name: cargo ${{ matrix.check }}
+        run: |
+          case "${{ matrix.check }}" in
+            fmt) ci/run.sh "cargo fmt" cargo fmt --check ;;
+            clippy) ci/run.sh "cargo clippy" cargo clippy --all-targets -- -D warnings ;;
+            test) ci/run.sh "cargo test" cargo test ;;
+          esac
+
+  link:
+    name: Link ${{ matrix.profile }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [vpn, lan]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: nfsd with tlshd, certificates and the ${{ matrix.profile }} link
+        run: ci/run.sh "Setup ${{ matrix.profile }}" bash -c "ci/certs.sh && ci/nfsd.sh && ci/link.sh ${{ matrix.profile }}"
+      - name: Baseline
+        run: ci/run.sh "Baseline ${{ matrix.profile }}" ci/baseline.sh ${{ matrix.profile }}
+
+  # Stage 1: one QUIC connection (HTTP/3 CONNECT tunnels) against 32 TCP connections over the
+  # VPN link. Each push runs the gateway checks and the default (4 streams, BBR capped at 1.5
+  # BDP); a manual run (workflow_dispatch) compares every variant. One per runner, all at once.
+  stage1:
+    name: Stage 1 ${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch'
+          && '["tcp", "quic-1", "quic-2", "quic-4", "quic-8", "quic-8-cap1.25", "quic-8-bbr", "quic-8-lan", "checks"]'
+          || '["quic-4", "checks"]') }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: release
+      - name: ${{ matrix.variant }}
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: ci/run.sh "Stage 1 $VARIANT" ci/stage1.sh "$VARIANT"
+      - name: Logs of the tunnel
+        if: failure()
+        run: |
+          for log in gateway.log tunnel.log; do
+            [ -f $log ] && echo "::error title=$log::$(tail -30 $log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+          done; true
+
+  # Stage 2: the client core against nfsd, by transport and security, all at once.
+  stage2:
+    name: Stage 2 ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [tcp, tcp-mtls, quic, quic-mtls, tcp-vpn, quic-vpn]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: release
+      - name: ${{ matrix.shard }}
+        run: ci/run.sh "Stage 2 ${{ matrix.shard }}" ci/stage2.sh ${{ matrix.shard }}
+      - name: Logs of the gateway
+        if: failure()
+        run: |
+          [ -f gateway.log ] && echo "::error title=gateway.log::$(tail -30 gateway.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"; true
+
+  # Stage 3: the engine's scenarios against nfsd, one per runner, with the limits enforced.
+  stage3:
+    name: Stage 3 ${{ matrix.shard }} ${{ matrix.scenario }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [quic-vpn, quic-mtls]
+        scenario: [play, seek, burst, load, crowd, change, delete, edit]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: release
+      - name: ${{ matrix.shard }} ${{ matrix.scenario }}
+        run: ci/run.sh "Stage 3 ${{ matrix.shard }} ${{ matrix.scenario }}" ci/stage3.sh ${{ matrix.shard }} ${{ matrix.scenario }}
+      - name: Logs of the gateway
+        if: failure()
+        run: |
+          [ -f gateway.log ] && echo "::error title=gateway.log::$(tail -30 gateway.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"; true
+
+  # Stage 4: the gateway's image, built natively for each architecture.
+  image:
+    name: Image ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: gateway/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/nfs-gateway,push-by-digest=true,name-canonical=true,push=${{ github.event_name == 'push' }}
+          cache-from: type=gha,scope=image-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=image-${{ matrix.arch }}
+      - run: mkdir digests && touch "digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/*
+
+  # The image as published must pass the gateway checks of stage 1.
+  image-checks:
+    name: Image checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      # This job only tests the image; the one published is built by `image`, from the Dockerfile.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2 # zizmor: ignore[cache-poisoning]
+        with:
+          shared-key: release
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: gateway/Dockerfile
+          load: true
+          tags: nfs-gateway:test
+          cache-from: type=gha,scope=image-amd64
+      - name: checks
+        run: GATEWAY_IMAGE=nfs-gateway:test ci/run.sh "Image checks" ci/stage1.sh checks
+      - name: Logs of the gateway
+        if: failure()
+        run: echo "::error title=gateway::$(docker logs nfs-gateway 2>&1 | tail -30 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+
+  publish:
+    name: Publish the image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [image, image-checks]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: One tag for both architectures
+        id: tags
+        run: |
+          image=ghcr.io/${{ github.repository_owner }}/nfs-gateway
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
+          docker buildx imagetools create -t "$image:latest" -t "$image:$version" \
+            -t "$image:${GITHUB_SHA::12}" \
+            --annotation "index:org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            $(printf "$image@sha256:%s " digests/*)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Published::$image:latest and $image:$version"
+      - name: A release for a new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.tags.outputs.version }}
+        run: ci/release.sh "$VERSION"

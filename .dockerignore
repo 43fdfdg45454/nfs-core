@@ -1,0 +1,4 @@
+target
+ci-certs
+*.log
+.git

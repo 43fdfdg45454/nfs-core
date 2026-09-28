@@ -1,0 +1,46 @@
+# The fuzz targets (cargo fuzz run <target>): everything a server can send the client. Outside the
+# workspace, as cargo-fuzz needs nightly and its own build.
+[package]
+name = "nfs-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+nfs-rpc = { path = "../crates/rpc", features = ["fuzzing"] }
+nfs-client = { path = "../crates/nfs", features = ["fuzzing"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "records"
+path = "fuzz_targets/records.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "result"
+path = "fuzz_targets/result.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "compound"
+path = "fuzz_targets/compound.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "callback"
+path = "fuzz_targets/callback.rs"
+test = false
+doc = false
+bench = false

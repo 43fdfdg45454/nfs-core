@@ -1,0 +1,11 @@
+[package]
+name = "nfs-limits"
+version.workspace = true
+publish = false
+description = "Good-experience limits every performance test enforces"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
