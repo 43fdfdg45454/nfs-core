@@ -65,8 +65,8 @@ services:
 ```
 
 It tunnels to nfsd on this host by default, asks every client for a certificate of `ca.pem`, and
-needs `rp_filter` off on the host. Every option, the firewall, certificates and troubleshooting:
-[docs/gateway.md](docs/gateway.md).
+needs `rp_filter` loose (2) or off on the host. Every option, the firewall, certificates and
+troubleshooting: [docs/gateway.md](docs/gateway.md).
 
 ## Using the crates
 

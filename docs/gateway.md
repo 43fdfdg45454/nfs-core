@@ -14,7 +14,8 @@ gateway no tiene permisos propios ni ve el TLS del export.
 - En el host, una vez (por ejemplo en `/etc/sysctl.d/90-nfs-gateway.conf`):
 
   ```
-  # Los paquetes del gateway llegan a nfsd por lo con la dirección del cliente.
+  # Los paquetes del gateway llegan a nfsd por lo con la dirección del cliente: el filtro
+  # estricto (1) los descarta. 2 (flexible, el valor por defecto en Fedora, entre otras) o 0.
   net.ipv4.conf.all.rp_filter = 0
   net.ipv4.conf.lo.rp_filter = 0
   # Buffers UDP grandes para QUIC.

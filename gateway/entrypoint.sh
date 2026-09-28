@@ -23,9 +23,11 @@ NFT
 ip rule add fwmark "$mark" lookup "$table"
 ip route add local 0.0.0.0/0 dev lo table "$table"
 # The gateway's own packets reach nfsd on lo with the client's address: strict reverse-path
-# filtering would drop them. /proc/sys is read-only in most containers: then the host sets it.
+# filtering (1) would drop them; loose (2, many distributions' default) or off lets them through.
+# /proc/sys is read-only in most containers: then only a strict host needs telling.
 for iface in all lo; do
-  echo 0 2>/dev/null > "/proc/sys/net/ipv4/conf/$iface/rp_filter" \
+  file="/proc/sys/net/ipv4/conf/$iface/rp_filter"
+  [ "$(cat "$file")" != 1 ] || echo 0 2>/dev/null > "$file" \
     || echo "warning: set net.ipv4.conf.$iface.rp_filter=0 (or 2) on the host" >&2
 done
 trap 'kill -TERM "$gateway" 2>/dev/null' TERM INT
