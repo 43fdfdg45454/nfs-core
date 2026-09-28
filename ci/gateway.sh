@@ -27,7 +27,7 @@ else
 fi
 # Listening, with its buffers set (right after the bind).
 for _ in $(seq 100); do
-  rb=$(sudo ss -Hlunm 'sport = :443' | grep -o -E 'rb[0-9]+' | head -1 | tr -d rb)
+  rb=$(sudo ss -Hlunm 'sport = :443' | grep -o -E 'rb[0-9]+' | head -1 | tr -d rb || true)
   if [ "${rb:-0}" -ge $((8 << 20)) ]; then
     sudo sysctl -qw net.core.rmem_max=16777216 net.core.wmem_max=16777216
     exit 0
