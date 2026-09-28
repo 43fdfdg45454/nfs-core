@@ -44,12 +44,8 @@ impl Channels {
     }
 
     fn reserved(&self) -> usize {
-        let lanes = self.connections.len();
-        match self.config.transport {
-            _ if lanes < 2 => 0,
-            crate::transport::Transport::Quic(_) => 1,
-            crate::transport::Transport::Tcp(_) => (lanes / 4).clamp(2, lanes - 1),
-        }
+        let quic = matches!(self.config.transport, crate::transport::Transport::Quic(_));
+        reserved(self.connections.len(), quic)
     }
 
     /// The least busy live connection of the lanes for this kind of call; any live one if those
@@ -142,4 +138,22 @@ impl Channels {
             }
         }
     }
+}
+
+/// Lanes kept for what a reader waits for: one stream over QUIC (they share one congestion
+/// controller); over TCP a quarter, at least 2; always one left for the bulk.
+fn reserved(lanes: usize, quic: bool) -> usize {
+    match lanes {
+        0 | 1 => 0,
+        _ if quic => 1,
+        _ => (lanes / 4).max(2).min(lanes - 1),
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn every_lane_count_keeps_urgent_and_bulk_lanes() {
+    let tcp: Vec<_> = [1, 2, 3, 4, 8, 16, 64].map(|lanes| reserved(lanes, false)).into();
+    assert_eq!(tcp, [0, 1, 2, 2, 2, 4, 16]);
+    assert_eq!((reserved(1, true), reserved(4, true)), (0, 1));
 }
