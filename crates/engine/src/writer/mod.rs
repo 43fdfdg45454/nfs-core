@@ -10,9 +10,10 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
+mod behind;
 mod flush;
 
-/// Unconfirmed data kept before a COMMIT is asked for.
+/// Unconfirmed data that asks for a COMMIT (in the background: behind.rs).
 pub(super) const UNCONFIRMED: usize = 64 << 20;
 
 pub(super) type Sent = Vec<(u64, Bytes, [u8; 8])>;
@@ -27,6 +28,7 @@ pub struct Writer {
     pub(super) permits: Arc<Semaphore>,
     pub(super) limit: usize,
     pub(super) queue: Arc<crate::queue::Queue>,
+    pub(super) committing: behind::Committing,
 }
 
 impl Engine {
@@ -51,7 +53,7 @@ impl Engine {
 
     fn writer(&self, file: File) -> Writer {
         let (chunk, file) = (self.client.max_io() as usize, Arc::new(file));
-        let (buffer, sent, tasks) = Default::default();
+        let (buffer, sent, tasks, committing) = Default::default();
         Writer {
             file,
             chunk,
@@ -61,6 +63,7 @@ impl Engine {
             permits: Arc::new(Semaphore::new(self.config.in_flight)),
             limit: self.config.in_flight,
             queue: self.queue.clone(),
+            committing,
         }
     }
 }
@@ -89,7 +92,7 @@ impl Writer {
         }
         let unconfirmed: usize =
             self.sent.lock().expect("not poisoned").iter().map(|(_, d, _)| d.len()).sum();
-        if unconfirmed >= UNCONFIRMED { self.flush().await } else { Ok(()) }
+        if unconfirmed >= UNCONFIRMED { self.commit_behind().await } else { Ok(()) }
     }
 
     pub async fn close(self) -> Result<()> {

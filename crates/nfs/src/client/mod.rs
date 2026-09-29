@@ -7,6 +7,7 @@ mod held;
 mod lock;
 mod open;
 mod reclaim;
+mod walk;
 
 pub use file::{File, OpenFile};
 
@@ -92,20 +93,6 @@ impl Client {
 
     async fn call(&self, ops: &Ops) -> Result<Results> {
         self.session.call(ops).await
-    }
-
-    /// Follows `path` from `from` (the export's root if `None`).
-    pub async fn lookup(&self, from: Option<&Fh>, path: &str) -> Result<(Fh, Attrs)> {
-        let mut ops = Ops::default();
-        ops.putfh(from.unwrap_or(&self.root));
-        components(path).for_each(|c| _ = ops.lookup(c));
-        ops.getfh().getattr(attr::FILE);
-        let mut r = self.call(&ops).await?;
-        r.next(PUTFH)?;
-        for _ in components(path) {
-            r.next(LOOKUP)?;
-        }
-        Ok((ops::fh(r.next(GETFH)?)?, Attrs::decode(r.next(GETATTR)?)?))
     }
 
     pub async fn getattr(&self, fh: &Fh) -> Result<Attrs> {

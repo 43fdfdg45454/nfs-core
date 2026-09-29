@@ -61,6 +61,7 @@ impl Writer {
 
     /// Sends what is buffered and waits until the server has all of it on stable storage.
     pub async fn flush(&self) -> Result<()> {
+        self.settle().await?;
         self.send_all().await?;
         for _ in 0..3 {
             let mut tasks = std::mem::take(&mut *self.tasks.lock().expect("not poisoned"));

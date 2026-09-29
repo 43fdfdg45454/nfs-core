@@ -18,6 +18,11 @@ impl Session {
         self.last_call.store(self.origin.elapsed().as_millis() as u64, Ordering::Relaxed);
     }
 
+    /// Operations a COMPOUND may carry, as the server granted.
+    pub async fn max_ops(&self) -> u32 {
+        self.state.read().await.fore.max_ops
+    }
+
     pub fn owner(&self) -> &str {
         &self.config.owner
     }

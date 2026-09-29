@@ -78,35 +78,40 @@ Decisiones vigentes tomadas sin consulta. Cada una dice qué se decidió y por q
     adelantado" completo (256 MiB; 48 en memoria) desde 8 MiB. Con la ventana completa se rellena
     en tandas: recién cuando lo que hay por delante baja a tres cuartos, para que la radio de un
     teléfono descanse entre tandas (a 1 MB/s, un minuto) sin que el colchón baje de 192 MiB.
-22. **Escritura:** WRITE del tamaño de la sesión, en vuelo como la lectura adelantada, COMMIT cada
-    64 MiB sin confirmar y al cerrar.
-23. **Prioridad de los lectores sobre las subidas:** mientras un lector espera la red, las
+22. **Escritura:** WRITE del tamaño de la sesión, en vuelo como la lectura adelantada. Cada 64 MiB
+    sin confirmar, un COMMIT en segundo plano de lo ya recibido, sin frenar el envío (uno a la vez:
+    128 MiB sin confirmar como máximo); al cerrar, COMMIT de todo.
+23. **Rutas en una llamada con cada paso a la vista** (`Client::walk`): LOOKUP, GETFH y GETATTR
+    por componente, hasta 64 operaciones por COMPOUND (lo que conceda el servidor; si concede
+    menos, en tramos). Un enlace simbólico en el camino es el último paso: el LOOKUP siguiente
+    falla. Antes, 16 operaciones: una ruta de más de 11 componentes no se abría.
+24. **Prioridad de los lectores sobre las subidas:** mientras un lector espera la red, las
     escrituras bajan a 2 en vuelo.
-24. **Archivos cambiados por otro cliente, como el cliente NFS del kernel** (consistencia al
+25. **Archivos cambiados por otro cliente, como el cliente NFS del kernel** (consistencia al
     abrir): mientras está abierto, lo ya leído puede quedar viejo; al reabrir, todo es la versión
     nueva. Un archivo que crece se lee más allá del fin viejo por el mismo lector (lo que pasa del
     tamaño conocido se pide directo, sin caché); uno truncado termina en su nuevo fin al instante.
-25. **Borrado por otro cliente: la caché del archivo viejo queda** hasta que la desaloje el límite.
+26. **Borrado por otro cliente: la caché del archivo viejo queda** hasta que la desaloje el límite.
     El motor no puede saberlo, y nunca se sirve para un archivo nuevo con el mismo nombre (la
     caché va por handle y versión). Borrado desde la app: se descarta en el momento.
 
-26. **Memoria total del motor: 96 MiB** para todos los archivos abiertos, repartida
+27. **Memoria total del motor: 96 MiB** para todos los archivos abiertos, repartida
     entre ellos (dos tercios adelante, uno atrás; nunca más que los 48 / 24 MiB por archivo). Lo que
     no entra en memoria queda en la caché de disco. `Engine::memory()` informa uso y pico.
 
 ## Herramientas y proceso
 
-27. **h3 desde git**, fijado a un commit: la versión publicada (0.0.8) manda `:scheme` y `:path`
+28. **h3 desde git**, fijado a un commit: la versión publicada (0.0.8) manda `:scheme` y `:path`
     en un CONNECT común, cosa que RFC 9114 prohíbe. Volver a crates.io cuando salga la versión.
-28. **rustfmt con `use_small_heuristics = "Max"`**: el mismo código en menos líneas, para el
+29. **rustfmt con `use_small_heuristics = "Max"`**: el mismo código en menos líneas, para el
     límite de 100 por archivo.
-29. **Servidor local para desarrollar: nfs-ganesha** en el contenedor (su kernel no tiene nfsd).
+30. **Servidor local para desarrollar: nfs-ganesha** en el contenedor (su kernel no tiene nfsd).
     La referencia sigue siendo nfsd en la CI.
-30. **Red simulada en `198.51.100.0/24`**: el contenedor de la nube usa `192.0.2.0/24`.
-31. **Fixtures que las pruebas alteran** (`gone-*`, `edited-*`, `grown-*`, `shrunk-*`): se
+31. **Red simulada en `198.51.100.0/24`**: el contenedor de la nube usa `192.0.2.0/24`.
+32. **Fixtures que las pruebas alteran** (`gone-*`, `edited-*`, `grown-*`, `shrunk-*`): se
     escriben en el servidor en cada job de la CI; localmente hay que volver a generarlas
     (`ci/fixtures.sh`) antes de cada corrida.
-32. **QUIC: un ping cada 25 s y 60 s de inactividad** (antes 2 s y 10 s): con pings cada 2 s la
+33. **QUIC: un ping cada 25 s y 60 s de inactividad** (antes 2 s y 10 s): con pings cada 2 s la
     radio de un teléfono nunca vuelve a reposo (tarda unos 10 s); 25 s conserva los NAT (30 s como
     mínimo). Un camino muerto con llamadas esperando lo detectan el tiempo de inactividad del RPC
     (30 s); al reconectar, un CONNECT sin respuesta del gateway en 4 s hace que el túnel descarte la

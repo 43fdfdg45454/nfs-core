@@ -13,7 +13,8 @@ const FORE: Channel = Channel {
     max_request: (1 << 20) + (64 << 10),
     max_response: (1 << 20) + (64 << 10),
     max_response_cached: 64 << 10,
-    max_ops: 16,
+    // A path of some 20 components looked up in one call (walk.rs); the server may grant fewer.
+    max_ops: 64,
     slots: 64,
 };
 
