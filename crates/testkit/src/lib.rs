@@ -53,7 +53,6 @@ pub fn config() -> Option<Config> {
                 nfs_tunnel::quic::client(tls, Default::default()).expect("QUIC endpoint");
             let server_name = env("NFS_GATEWAY_NAME").unwrap_or(host);
             let authority = server.clone();
-            let gateway = gateway.parse().expect("gateway address");
             Transport::Quic(Arc::new(Tunnel {
                 endpoint,
                 gateway,

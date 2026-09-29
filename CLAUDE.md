@@ -199,8 +199,8 @@ los fija la plataforma y no el código (la CPU del emulador), se informan sin ex
   de túnel (`crates/tools`) con un X-Forwarded-For falso; `ci/transparent.sh` pone las reglas de
   ruteo del origen transparente; `ci/measure.sh` mide lectura, escritura, latencia de un RPC NULL
   bajo carga (`nfs-rpc-probe`) y CPU del túnel por MB; `ci/checks.sh` verifica origen real,
-  que un túnel pedido a otro puerto igual llega solo a nfsd, rechazos (CA desconocida, sin certificado), mTLS del export de punta a punta y
-  cambio de IP.
+  que un túnel pedido a otro puerto igual llega solo a nfsd, rechazos (CA desconocida, sin certificado), el nombre del
+  gateway resuelto en cada conexión (como TCP), mTLS del export de punta a punta y cambio de IP.
 - Configurables por servidor (núcleo y app): cantidad de streams (4 por defecto) y tope de datos
   en vuelo de BBR (`bbr/<gain>`, 1,5 BDP por defecto; `crates/tunnel/src/congestion`). El BBR de
   quinn (v1) mantiene ~2 BDP en vuelo y el BDP de más queda en la cola del cuello de botella: con

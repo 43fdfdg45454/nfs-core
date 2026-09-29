@@ -40,6 +40,18 @@ report+="A tunnel naming port 22 reached nfsd, and only nfsd%0A"
 refused 2053 "Connection error" --cert "$certs/rogue-client.pem" --key "$certs/rogue-client.key"
 refused 2054 "Connection error"
 
+# The gateway's name is looked up at each new QUIC connection, as TCP does: pointed first at an
+# address nobody answers, then at the gateway, the same tunnel client gets through.
+echo "198.51.100.9 gateway.test" | sudo tee -a /etc/hosts > /dev/null
+netns "$bin/nfs-tunnel-client" --listen 127.0.0.1:2055 --gateway gateway.test:443 \
+  --server-name 198.51.100.1 --ca "$certs/ca.pem" "${identity[@]}" > renamed.log 2>&1 &
+sleep 0.5
+probe() { netns timeout 20 "$bin/nfs-rpc-probe" --server 127.0.0.1:2055 --seconds 1 > /dev/null 2>&1; }
+probe && { echo "a name pointing nowhere reached nfsd"; exit 1; }
+sudo sed -i 's/^198\.51\.100\.9 gateway\.test$/198.51.100.1 gateway.test/' /etc/hosts
+probe || { echo "the name, pointed at the gateway, was not looked up again"; cat renamed.log; exit 1; }
+report+="A name looked up at each connection: pointed elsewhere and then at the gateway, it got through%0A"
+
 # The export's mutual TLS end to end: nfs-core's client does RPC-with-TLS with tlshd inside the
 # tunnel (the tunnel client on 127.0.0.1:2049 carries it).
 output=$(netns NFS_SERVER=127.0.0.1:2049 NFS_EXPORT=/mtls NFS_TLS=mtls NFS_TLS_DIR="$certs" \

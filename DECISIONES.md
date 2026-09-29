@@ -117,3 +117,8 @@ Decisiones vigentes tomadas sin consulta. Cada una dice qué se decidió y por q
     (30 s); al reconectar, un CONNECT sin respuesta del gateway en 4 s hace que el túnel descarte la
     conexión QUIC muerta y abra otra: como por TCP. Los cambios de red avisados por la plataforma reconectan
     al instante.
+34. **La conexión QUIC se abre como una TCP**: el gateway es `host:puerto` y el nombre se resuelve
+    en cada conexión nueva (el DNS de la red nueva puede dar otra dirección, como pasa con un DNS
+    distinto en casa y afuera), probando sus direcciones en orden. El socket del cliente es de doble
+    pila (IPv6 e IPv4; solo IPv4 si el sistema no tiene IPv6). La caché de DNS es la del sistema,
+    que conoce el TTL y los cambios de red: el núcleo no guarda direcciones.

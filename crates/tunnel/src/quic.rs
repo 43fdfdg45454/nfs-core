@@ -33,11 +33,10 @@ fn transport(congestion: Congestion) -> TransportConfig {
     config
 }
 
-fn socket(addr: SocketAddr) -> Result<UdpSocket, Error> {
+fn buffered(socket: UdpSocket) -> Result<UdpSocket, Error> {
     use rustix::net::sockopt::{
         set_socket_recv_buffer_size_force, set_socket_send_buffer_size_force,
     };
-    let socket = UdpSocket::bind(addr)?;
     let raw = socket2::SockRef::from(&socket);
     if set_socket_recv_buffer_size_force(&socket, SOCKET_BUFFER).is_err() {
         raw.set_recv_buffer_size(SOCKET_BUFFER)?;
@@ -58,15 +57,26 @@ pub fn server(
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls)?));
     config.transport_config(Arc::new(transport(congestion))).migration(false);
     let runtime = Arc::new(TokioRuntime);
-    Ok(Endpoint::new(EndpointConfig::default(), Some(config), socket(addr)?, runtime)?)
+    let socket = buffered(UdpSocket::bind(addr)?)?;
+    Ok(Endpoint::new(EndpointConfig::default(), Some(config), socket, runtime)?)
 }
 
 pub fn client(tls: rustls::ClientConfig, congestion: Congestion) -> Result<Endpoint, Error> {
     let mut config = quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls)?));
     config.transport_config(Arc::new(transport(congestion)));
-    let socket = socket(SocketAddr::from(([0, 0, 0, 0], 0)))?;
+    let socket = buffered(dual_stack().or_else(|_| UdpSocket::bind(("0.0.0.0", 0)))?)?;
     let mut endpoint =
         Endpoint::new(EndpointConfig::default(), None, socket, Arc::new(TokioRuntime))?;
     endpoint.set_default_client_config(config);
     Ok(endpoint)
+}
+
+/// The client's socket reaches IPv6 and IPv4 addresses alike, as TCP does; IPv4 only on a host
+/// without IPv6.
+fn dual_stack() -> std::io::Result<UdpSocket> {
+    use socket2::{Domain, Socket, Type};
+    let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
+    socket.set_only_v6(false)?;
+    socket.bind(&SocketAddr::from((std::net::Ipv6Addr::UNSPECIFIED, 0)).into())?;
+    Ok(socket.into())
 }

@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-client"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "nfs-rpc",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-engine"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "nfs-client",
@@ -389,7 +389,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-gateway"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "h3",
@@ -403,11 +403,11 @@ dependencies = [
 
 [[package]]
 name = "nfs-limits"
-version = "1.0.5"
+version = "1.0.6"
 
 [[package]]
 name = "nfs-rpc"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "nfs-xdr",
@@ -419,7 +419,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-testkit"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "nfs-client",
  "nfs-rpc",
@@ -428,7 +428,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-tools"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "h3",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-tunnel"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
  "h3",
@@ -459,7 +459,7 @@ dependencies = [
 
 [[package]]
 name = "nfs-xdr"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "bytes",
 ]

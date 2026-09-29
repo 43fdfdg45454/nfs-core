@@ -1,13 +1,14 @@
 //! The client side of the tunnel: one QUIC connection to the gateway, opened on first use and
 //! again after it closes (a new address means a new connection: the gateway does not follow
-//! migrations), and a CONNECT stream for each TCP connection the NFS client would open.
+//! migrations), and a CONNECT stream for each TCP connection the NFS client would open. It is
+//! opened as a TCP connection is: the name looked up each time (the network may have changed
+//! what it points to), and each of its addresses tried in turn.
 
 use crate::Error;
 use crate::pump::{self, Io};
 use bytes::Bytes;
 use h3::client::SendRequest;
 use http::{Method, Request, StatusCode};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -19,7 +20,8 @@ type Stream = h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
 
 pub struct Tunnel {
     pub endpoint: quinn::Endpoint,
-    pub gateway: SocketAddr,
+    /// `host:port` of the gateway, as for TCP: a name or an address (IPv6 in brackets).
+    pub gateway: String,
     pub server_name: String,
     pub authority: String,
     /// An extra request header, `name:value`, to show the gateway ignores headers.
@@ -55,7 +57,7 @@ impl Tunnel {
         if let Some((_, sender, _)) = slot.as_ref() {
             return Ok(sender.clone());
         }
-        let connection = self.endpoint.connect(self.gateway, &self.server_name)?.await?;
+        let connection = self.connect().await?;
         let id = connection.stable_id();
         let quic = connection.clone();
         let (mut driver, sender) = h3::client::new(h3_quinn::Connection::new(connection)).await?;
@@ -70,6 +72,20 @@ impl Tunnel {
             }
         });
         Ok(sender)
+    }
+
+    async fn connect(&self) -> Result<quinn::Connection, Error> {
+        let mut failed: Option<Error> = None;
+        for address in tokio::net::lookup_host(self.gateway.as_str()).await? {
+            match self.endpoint.connect(address, &self.server_name) {
+                Ok(connecting) => match connecting.await {
+                    Ok(connection) => return Ok(connection),
+                    Err(error) => failed = Some(error.into()),
+                },
+                Err(error) => failed = Some(error.into()),
+            }
+        }
+        Err(failed.unwrap_or_else(|| format!("{} has no address", self.gateway).into()))
     }
 
     /// The network changed (another interface or address): the connection on the old path is

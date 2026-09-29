@@ -92,6 +92,9 @@ let bytes = reader.read_at(attrs.size / 2, 128 << 10).await?;
 
 `Security::tls(rustls_config, "nas.example.net")` turns on RPC-with-TLS (mutual, with a client
 certificate in the rustls configuration); `Transport::Quic(tunnel)` goes through the gateway.
+Both reach their server the same way: `host:port`, the name looked up at each new connection (the
+system's resolver and cache decide, so a network change that changes the address is followed) and
+each address tried in turn, IPv6 or IPv4.
 
 ## How it is tested
 
