@@ -17,6 +17,8 @@ tokio.workspace = true
 
 [dev-dependencies]
 nfs-testkit = { path = "../testkit" }
+# The paused clock, for the rate cap's tests.
+tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 # Entry points for the fuzz targets (fuzz/).

@@ -36,7 +36,7 @@ with a 2 s buffer never stalls.
 |---|---|
 | `nfs-xdr` | XDR encoding and decoding, bounded: no length from the network is trusted. |
 | `nfs-rpc` | ONC RPC over any byte stream: many calls in flight, AUTH_SYS, RPC-with-TLS (TLS 1.3 only). |
-| `nfs-client` | NFSv4.1/4.2 sessions: slots and replays, recovery and reclaim after a server restart, delegations and callbacks, byte-range locks, COPY/CLONE, live stats. |
+| `nfs-client` | NFSv4.1/4.2 sessions: slots and replays, recovery and reclaim after a server restart, delegations and callbacks, byte-range locks, COPY/CLONE, live stats, optional caps on bytes per second up and down. |
 | `nfs-engine` | Files for applications: 128 KiB pieces, urgent reads first, read-ahead in bursts, a memory budget, a disk cache per file version, parallel writes with COMMIT. |
 | `nfs-tunnel` | QUIC with BBR (capped at 1.5 BDP), HTTP/3 `CONNECT` streams, the client side of the tunnel. |
 | `nfs-gateway` | Runs next to nfsd: each client stream becomes a TCP connection to nfsd **from the client's own address**, so `/etc/exports` and the export's TLS apply exactly as without it. |
@@ -91,7 +91,8 @@ let bytes = reader.read_at(attrs.size / 2, 128 << 10).await?;
 ```
 
 `Security::tls(rustls_config, "nas.example.net")` turns on RPC-with-TLS (mutual, with a client
-certificate in the rustls configuration); `Transport::Quic(tunnel)` goes through the gateway.
+certificate in the rustls configuration); `Transport::Quic(tunnel)` goes through the gateway. `config.rate = Rate::new(up, down)` caps the
+bytes per second each way (0: no cap), shared by all of the client's connections.
 Both reach their server the same way: `host:port`, the name looked up at each new connection (the
 system's resolver and cache decide, so a network change that changes the address is followed) and
 each address tried in turn, IPv6 or IPv4.

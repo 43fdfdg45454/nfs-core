@@ -122,3 +122,9 @@ Decisiones vigentes tomadas sin consulta. Cada una dice qué se decidió y por q
     distinto en casa y afuera), probando sus direcciones en orden. El socket del cliente es de doble
     pila (IPv6 e IPv4; solo IPv4 si el sistema no tiene IPv6). La caché de DNS es la del sistema,
     que conoce el TTL y los cambios de red: el núcleo no guarda direcciones.
+35. **Límite de bytes por segundo por cliente** (`Config.rate`, `Rate::new(subida, bajada)`): un
+    balde de fichas por sentido, compartido por todas las conexiones del cliente y aplicado al
+    flujo de bytes de cada una (debajo de TLS: su sobrecarga cuenta; igual por TCP y por QUIC).
+    Guarda hasta 100 ms de su tasa; una operación puede pasarse y la siguiente espera la diferencia.
+    No distingue prioridades: con un límite por debajo de la tasa de un video, los límites de buena
+    experiencia no se pueden cumplir.

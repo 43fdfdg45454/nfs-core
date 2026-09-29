@@ -55,6 +55,7 @@ pub async fn connect(config: &Config) -> Result<Connection> {
         .await
         .map_err(|_| lost(format!("no answer in {:?}", config.reach_timeout)))?
         .map_err(lost)?;
+    let stream = config.rate.wrap(stream);
     let (security, idle_timeout) = (&config.security, config.idle_timeout);
     let stream = match security {
         Security::None => stream,

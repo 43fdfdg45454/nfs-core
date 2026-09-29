@@ -1,3 +1,4 @@
+use crate::rate::Rate;
 use crate::transport::{Security, Transport};
 use nfs_rpc::Auth;
 use std::time::Duration;
@@ -29,6 +30,8 @@ pub struct Config {
     /// as a kernel client's umask: 0o022 by default. Without a mode Linux nfsd would create them
     /// 0000, writable again only by root.
     pub umask: u32,
+    /// Bytes per second up and down, across all of the client's connections: none by default.
+    pub rate: Rate,
 }
 
 impl Config {
@@ -53,6 +56,7 @@ impl Config {
             reach_timeout: Duration::from_secs(4),
             call_timeout: Duration::from_secs(75),
             umask: 0o022,
+            rate: Rate::default(),
         }
     }
 }

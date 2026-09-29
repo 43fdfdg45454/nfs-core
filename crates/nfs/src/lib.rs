@@ -10,6 +10,7 @@ mod error;
 #[doc(hidden)]
 pub mod fuzzing;
 mod ops;
+mod rate;
 mod session;
 mod stats;
 mod status;
@@ -23,6 +24,7 @@ pub use ops::dir::Entry;
 pub use ops::lock::LockKind;
 pub use ops::open::Create;
 pub use ops::open::{READ_ACCESS, WRITE_ACCESS};
+pub use rate::Rate;
 pub use stats::Stats;
 pub use status::Status;
 pub use transport::{Security, Transport};
