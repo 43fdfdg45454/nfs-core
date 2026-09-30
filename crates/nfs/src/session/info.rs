@@ -67,7 +67,9 @@ impl Session {
         self.channels.restart().await;
     }
 
+    /// The connections close and the lease is no longer renewed: a later call connects again.
     pub fn close(&self) {
+        self.closed.store(true, std::sync::atomic::Ordering::Relaxed);
         self.channels.close();
     }
 }

@@ -16,6 +16,9 @@ impl Session {
                 let Some(session) = session.upgrade() else {
                     return;
                 };
+                if session.closed.load(Ordering::Relaxed) {
+                    return;
+                }
                 let last = Duration::from_millis(session.last_call.load(Ordering::Relaxed));
                 if session.origin.elapsed().saturating_sub(last) >= period {
                     _ = session.call(&Ops::default()).await;

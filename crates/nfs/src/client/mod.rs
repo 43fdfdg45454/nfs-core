@@ -125,4 +125,19 @@ impl Client {
     pub fn close(&self) {
         self.session.close();
     }
+
+    /// Leaving the server: every delegation held goes back (within 2 s: the network may be gone
+    /// already), then the connections close and the lease is no longer renewed. Nothing is left
+    /// that another client's change would wait on, even if this process is frozen or killed next.
+    pub async fn leave(&self) {
+        let back = async {
+            for (fh, delegation) in self.session.callbacks.delegations.take_all() {
+                let mut ops = Ops::default();
+                ops.putfh(&fh).delegreturn(&delegation);
+                _ = self.call(&ops).await;
+            }
+        };
+        _ = tokio::time::timeout(Duration::from_secs(2), back).await;
+        self.close();
+    }
 }

@@ -44,6 +44,21 @@ impl Delegations {
         _ = self.returns.send((fh.clone(), stateid));
     }
 
+    /// Taken out to go back with the file's CLOSE: whether it was still held (not recalled).
+    pub fn take(&self, fh: &Fh, stateid: &Stateid) -> bool {
+        let mut held = self.held.lock().expect("not poisoned");
+        let mine = held.get(fh).is_some_and(|s| s.other == stateid.other);
+        if mine {
+            held.remove(fh);
+        }
+        mine
+    }
+
+    /// Every one held, taken out to go back now (the client is leaving).
+    pub fn take_all(&self) -> Vec<(Fh, Stateid)> {
+        self.held.lock().expect("not poisoned").drain().collect()
+    }
+
     /// All of them (CB_RECALL_ANY).
     pub fn give_back_all(&self) {
         let all: Vec<_> = self.held.lock().expect("not poisoned").drain().collect();

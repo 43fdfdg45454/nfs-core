@@ -141,13 +141,23 @@ impl OpenFile {
         )?)
     }
 
-    /// Closes the open on the server (the handle stays usable for nothing else).
+    /// Closes the open on the server (the handle stays usable for nothing else). A read
+    /// delegation it brought goes back with it: kept, it would save only a GETATTR on opening
+    /// the file again, and make any other client's change wait on this one answering its recall.
     pub async fn close(&self) -> Result<()> {
         self.release_locks().await;
         let mut r = self.with_state(false, |ops, s| ops.close(s)).await?;
-        match r.next(CLOSE) {
+        let closed = match r.next(CLOSE) {
             Ok(_) | Err(Error::Nfs(_)) => Ok(()),
             Err(e) => Err(e),
+        };
+        // On its own: a delegation revoked meanwhile must not look like the open's state lost.
+        let delegations = &self.client.session.callbacks.delegations;
+        if let Some(d) = self.delegation().filter(|d| delegations.take(&self.fh, d)) {
+            let mut ops = Ops::default();
+            ops.putfh(&self.fh).delegreturn(&d);
+            _ = self.client.call(&ops).await;
         }
+        closed
     }
 }

@@ -35,6 +35,8 @@ pub struct Session {
     origin: Instant,
     /// Milliseconds since `origin` of the last call: the lease is renewed only when idle.
     last_call: AtomicU64,
+    /// Left (Client::leave) or closed: the lease is no longer renewed.
+    closed: std::sync::atomic::AtomicBool,
     /// Open files, reclaimed when the server restarts.
     opens: std::sync::Mutex<Vec<std::sync::Weak<dyn reclaim::Reclaim>>>,
 }
@@ -65,6 +67,7 @@ impl Session {
             verifier,
             origin: Instant::now(),
             last_call: 0.into(),
+            closed: false.into(),
             opens: Default::default(),
         });
         session.reclaim_complete().await?;

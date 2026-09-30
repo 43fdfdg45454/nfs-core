@@ -128,3 +128,9 @@ Decisiones vigentes tomadas sin consulta. Cada una dice qué se decidió y por q
     Guarda hasta 100 ms de su tasa; una operación puede pasarse y la siguiente espera la diferencia.
     No distingue prioridades: con un límite por debajo de la tasa de un video, los límites de buena
     experiencia no se pueden cumplir.
+36. **Delegaciones de lectura solo mientras el archivo está abierto**: al cerrarse vuelven al servidor
+    (DELEGRETURN aparte, después del CLOSE: una revocada no debe parecer estado perdido del open).
+    Guardarlas solo ahorraba un GETATTR al reabrir (la caché se reusa igual si la versión no cambió)
+    y hacía que el cambio de otro cliente esperara a que este contestara el recall: un teléfono
+    congelado en segundo plano no contesta. `Client::leave` devuelve todas (2 s como máximo), cierra
+    las conexiones y deja de renovar el lease. `tests/frozen.rs` lo prueba con un cliente congelado.

@@ -36,7 +36,7 @@ with a 2 s buffer never stalls.
 |---|---|
 | `nfs-xdr` | XDR encoding and decoding, bounded: no length from the network is trusted. |
 | `nfs-rpc` | ONC RPC over any byte stream: many calls in flight, AUTH_SYS, RPC-with-TLS (TLS 1.3 only). |
-| `nfs-client` | NFSv4.1/4.2 sessions: slots and replays, recovery and reclaim after a server restart, delegations and callbacks, byte-range locks, COPY/CLONE, live stats, optional caps on bytes per second up and down. |
+| `nfs-client` | NFSv4.1/4.2 sessions: slots and replays, recovery and reclaim after a server restart, delegations and callbacks (read delegations only while the file is open; `leave()` gives every one back), byte-range locks, COPY/CLONE, live stats, optional caps on bytes per second up and down. |
 | `nfs-engine` | Files for applications: 128 KiB pieces, urgent reads first, read-ahead in bursts, a memory budget, a disk cache per file version, parallel writes with COMMIT. |
 | `nfs-tunnel` | QUIC with BBR (capped at 1.5 BDP), HTTP/3 `CONNECT` streams, the client side of the tunnel. |
 | `nfs-gateway` | Runs next to nfsd: each client stream becomes a TCP connection to nfsd **from the client's own address**, so `/etc/exports` and the export's TLS apply exactly as without it. |

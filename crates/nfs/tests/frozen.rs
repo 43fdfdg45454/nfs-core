@@ -84,12 +84,12 @@ async fn a_file_read_and_closed_keeps_no_delegation() {
     .await;
 }
 
-/// Still open when the client disconnects (as unused), then frozen.
+/// Still open when the client leaves (disconnected as unused), then frozen: leaving gave it back.
 #[tokio::test(flavor = "multi_thread")]
 async fn leaving_gives_every_delegation_back() {
     removed_at_once("frozen-left", |reader, file| async move {
         file.read(0, 6, false).await.unwrap();
-        reader.close();
+        reader.leave().await;
     })
     .await;
 }
